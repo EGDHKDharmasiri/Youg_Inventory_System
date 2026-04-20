@@ -258,7 +258,7 @@ Features:
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@DhanushkaHarsha](https://github.com/yourusername)
+- GitHub: [@DhanushkaHarsha](https://github.com/EGDHKDharmasiri)
 - LinkedIn: [Dhanushka Harsha](https://www.linkedin.com/in/dhanushka-harsha-389875228?utm_source=share_via&utm_content=profile&utm_medium=member_android)
 - Email: egddharmasiri@gmail.com
 
