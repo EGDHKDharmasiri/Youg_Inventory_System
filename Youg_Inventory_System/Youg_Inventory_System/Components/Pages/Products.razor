@@ -1,0 +1,633 @@
+@page "/products"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject IJSRuntime JS
+@using System.IO
+
+<PageTitle>Product Manager - Young Inventory System</PageTitle>
+
+<!-- TOP BAR -->
+<div class="bg-white border-bottom p-4" style="box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-1 fw-bold">Product Manager</h2>
+            <p class="text-muted mb-0">Manage your fashion store inventory and monitor stock levels.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="ExportProducts">
+                <i class="bi bi-download"></i> Export
+            </button>
+            <button class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-gear"></i> Settings
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SCROLLABLE CONTENT AREA -->
+<div style="flex-grow: 1; overflow-y: auto; padding: 1.5rem;">
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Success!</strong> @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-2"></i>
+            <strong>Error!</strong> @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+        </div>
+    }
+
+    <!-- QUICK ENTRY SECTION -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-bottom p-4">
+            <h5 class="mb-0 fw-bold">
+                <i class="bi bi-lightning-charge"></i> Quick Entry
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <EditForm Model="quickEntryProduct" OnValidSubmit="HandleQuickEntry">
+                <DataAnnotationsValidator />
+
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Product Name <span class="text-danger">*</span></label>
+                                <InputText class="form-control" placeholder="e.g., Silk A-Line Evening Dress" 
+                                           @bind-Value="quickEntryProduct.Name" />
+                                <ValidationMessage For="() => quickEntryProduct.Name" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Product Code <span class="text-danger">*</span></label>
+                                <InputText class="form-control" placeholder="SKU-DB829" 
+                                           @bind-Value="quickEntryProduct.ProductCode" />
+                                <ValidationMessage For="() => quickEntryProduct.ProductCode" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Price (LKR) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">LKR</span>
+                                    <InputNumber class="form-control" placeholder="145.00" 
+                                                 @bind-Value="quickEntryProduct.Price" />
+                                </div>
+                                <ValidationMessage For="() => quickEntryProduct.Price" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Initial Stock <span class="text-danger">*</span></label>
+                                <InputNumber class="form-control" placeholder="40" 
+                                             @bind-Value="quickEntryProduct.StockQuantity" />
+                                <ValidationMessage For="() => quickEntryProduct.StockQuantity" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Size <span class="text-danger">*</span></label>
+                                <InputText class="form-control" placeholder="S, M, L, XL" 
+                                           @bind-Value="quickEntryProduct.Size" />
+                                <ValidationMessage For="() => quickEntryProduct.Size" class="text-danger small" />
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Color <span class="text-danger">*</span></label>
+                                <InputText class="form-control" placeholder="Black, Red, Blue" 
+                                           @bind-Value="quickEntryProduct.Color" />
+                                <ValidationMessage For="() => quickEntryProduct.Color" class="text-danger small" />
+                            </div>
+
+                            <div class="col-12 mb-3">
+                                <label class="form-label fw-semibold">Low Stock Level (Default: 10)</label>
+                                <InputNumber class="form-control" placeholder="10" 
+                                             @bind-Value="quickEntryProduct.LowStockLevel" />
+                                <small class="text-muted">Alert when stock falls below this level</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IMAGE UPLOAD ZONE -->
+                    <div class="col-lg-4">
+                        <div class="h-100 d-flex flex-column">
+                            @if (!string.IsNullOrEmpty(quickEntryProduct.ImageData))
+                            {
+                                <div class="position-relative">
+                                    <img src="@quickEntryProduct.ImageData" alt="Product preview" 
+                                         class="img-fluid rounded mb-3" style="height: 250px; object-fit: cover; width: 100%;">
+                                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2" 
+                                            @onclick="() => ClearImage()">
+                                        <i class="bi bi-x-lg"></i> Clear
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="position-relative border-2 border-dashed rounded p-4 text-center text-muted flex-grow-1 d-flex flex-column justify-content-center align-items-center upload-zone" 
+                                     style="border-color: #dee2e6; background-color: #f8f9fa; cursor: pointer; transition: all 0.3s; overflow: hidden;"
+                                     @ondrop="HandleImageDrop"
+                                     @ondragover="HandleDragOver"
+                                     @ondragleave="HandleDragLeave">
+                                    <InputFile id="imageInput" accept="image/*" OnChange="HandleImageUpload" 
+                                               style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10;" />
+                                    <i class="bi bi-cloud-upload display-4 mb-2"></i>
+                                    <p class="mb-2">
+                                        <strong>Click or drag to upload</strong>
+                                    </p>
+                                    <small>PNG, JPG, GIF (Max 10MB)</small>
+                                </div>
+                            }
+
+                            <div class="mt-auto pt-3">
+                                <button type="button" class="btn btn-outline-secondary w-100 mb-2" 
+                                        @onclick="ClearQuickEntryForm">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Clear Form
+                                </button>
+                                <button type="submit" class="btn btn-primary w-100" disabled="@isAddingProduct">
+                                    @if (isAddingProduct)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <text>Adding...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-plus-lg me-2"></i>
+                                        <text>Add Product</text>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+    <!-- STATS CARDS -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-2 small fw-semibold">Total Products</p>
+                            <h2 class="mb-0 fw-bold text-dark">@totalProducts</h2>
+                        </div>
+                        <div class="p-3 rounded-circle" style="background-color: #e7f0ff;">
+                            <i class="bi bi-box2-heart text-primary fs-5"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-2 small fw-semibold">Total Value</p>
+                            <h2 class="mb-0 fw-bold text-dark">Rs. @FormatCurrency(totalValue)</h2>
+                        </div>
+                        <div class="p-3 rounded-circle" style="background-color: #fff3e0;">
+                            <i class="bi bi-currency-dollar text-warning fs-5"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-2 small fw-semibold">Low Stock Alerts</p>
+                            <h2 class="mb-0 fw-bold text-danger">@lowStockCount</h2>
+                        </div>
+                        <div class="p-3 rounded-circle" style="background-color: #ffe0e0;">
+                            <i class="bi bi-exclamation-triangle text-danger fs-5"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEARCH & FILTER SECTION -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold small">Search Products</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" placeholder="Search by name or code..." 
+                               @bind="searchQuery" @bind:event="oninput" @onkeyup="ApplyFilters" />
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <label class="form-label fw-semibold small">Filter by Status</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm @(currentFilter == "all" ? "active bg-primary text-white border-primary" : "")" 
+                                @onclick="@(() => SetFilter("all"))">
+                            All Items
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm @(currentFilter == "in-stock" ? "active bg-success text-white border-success" : "")" 
+                                @onclick="@(() => SetFilter("in-stock"))">
+                            In Stock
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm @(currentFilter == "low-stock" ? "active bg-warning text-white border-warning" : "")" 
+                                @onclick="@(() => SetFilter("low-stock"))">
+                            Low Stock
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm @(currentFilter == "out-of-stock" ? "active bg-danger text-white border-danger" : "")" 
+                                @onclick="@(() => SetFilter("out-of-stock"))">
+                            Out of Stock
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATA GRID SECTION -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (isLoadingProducts)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-3">Loading products...</p>
+                </div>
+            }
+            else if (filteredProducts == null || filteredProducts.Count == 0)
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 text-muted"></i>
+                    <p class="text-muted mt-3">No products found. Start by adding a new product!</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light border-bottom">
+                            <tr>
+                                <th class="p-3" width="50">Image</th>
+                                <th class="p-3">Product</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3 text-end">Price</th>
+                                <th class="p-3 text-end">Stock</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var product in filteredProducts)
+                            {
+                                var status = GetProductStatus(product);
+                                var statusBadgeClass = GetStatusBadgeClass(status);
+                                
+                                <tr class="align-middle border-bottom table-row-hover">
+                                    <td class="p-3">
+                                        @if (!string.IsNullOrEmpty(product.ImageData))
+                                        {
+                                            <img src="@product.ImageData" alt="@product.Name" 
+                                                 class="rounded" style="width: 45px; height: 45px; object-fit: cover;">
+                                        }
+                                        else
+                                        {
+                                            <div class="rounded bg-light text-muted d-flex align-items-center justify-content-center" 
+                                                 style="width: 45px; height: 45px;">
+                                                <i class="bi bi-image"></i>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td class="p-3">
+                                        <div class="fw-semibold text-dark">@product.Name</div>
+                                        <small class="text-muted">@product.ProductCode</small>
+                                    </td>
+                                    <td class="p-3">
+                                        <span class="badge bg-light text-dark">@product.Color</span>
+                                    </td>
+                                    <td class="p-3 text-end">
+                                        <strong>Rs. @FormatCurrency(product.Price)</strong>
+                                    </td>
+                                    <td class="p-3 text-end">
+                                        <span class="@(product.StockQuantity == 0 ? "text-danger" : product.StockQuantity <= product.LowStockLevel ? "text-warning" : "text-success") fw-semibold">
+                                            @product.StockQuantity
+                                        </span>
+                                    </td>
+                                    <td class="p-3">
+                                        <span class="badge @statusBadgeClass">@status</span>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <button class="btn btn-sm btn-outline-primary me-2" title="Edit" @onclick="() => EditProduct(product.Id)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" title="Delete" @onclick="() => DeleteProduct(product.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        <div class="card-footer bg-white py-3 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="small text-muted">Showing @filteredProducts.Count of @allProducts.Count products</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // ===== STATE VARIABLES =====
+    private Product quickEntryProduct = new();
+    private List<Product> allProducts = new();
+    private List<Product> filteredProducts = new();
+    
+    private string searchQuery = string.Empty;
+    private string currentFilter = "all";
+    private string successMessage = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool isAddingProduct = false;
+    private bool isLoadingProducts = true;
+    
+    // ===== COMPUTED METRICS (REQUIREMENT 2: Dashboard Metrics) =====
+    private int totalProducts => allProducts.Count;
+    
+    private decimal totalValue => allProducts.Sum(p => p.Price * p.StockQuantity);
+    
+    private int lowStockCount => allProducts.Count(p => p.StockQuantity <= p.LowStockLevel && p.StockQuantity > 0);
+
+    // ===== LIFECYCLE =====
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    // ===== DATABASE OPERATIONS =====
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoadingProducts = true;
+            allProducts = await Http.GetFromJsonAsync<List<Product>>("api/products") ?? new();
+            filteredProducts = new List<Product>(allProducts);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load products: {ex.Message}";
+            Console.WriteLine($"Error: {ex}");
+        }
+        finally
+        {
+            isLoadingProducts = false;
+        }
+    }
+
+    // ===== REQUIREMENT 1: ADD PRODUCT & IMAGE UPLOAD =====
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            var file = e.File;
+            const long maxFileSize = 2 * 1024 * 1024; // 2MB
+
+            // Allowed image formats
+            var allowedFormats = new[] { "image/jpeg", "image/png", "image/gif" };
+            if (!allowedFormats.Contains(file.ContentType))
+            {
+                errorMessage = "Only JPEG, PNG, and GIF images are allowed.";
+                return;
+            }
+
+            // Use RequestImageFileAsync to safely resize and bypass size limits
+            var resizedImageFile = await file.RequestImageFileAsync("image/jpeg", 500, 500);
+
+            // Read the resized stream and convert to Base64
+            using (var stream = resizedImageFile.OpenReadStream(maxFileSize))
+            {
+                var buffer = new byte[resizedImageFile.Size];
+                await stream.ReadAsync(buffer, 0, (int)resizedImageFile.Size);
+                quickEntryProduct.ImageData = $"data:image/jpeg;base64,{Convert.ToBase64String(buffer)}";
+            }
+
+            errorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error uploading image: {ex.Message}";
+            Console.WriteLine($"Image upload error: {ex}");
+        }
+    }
+
+    private Task HandleImageDrop(DragEventArgs e)
+    {
+        // Drag and drop is handled by the file input
+        return Task.CompletedTask;
+    }
+
+    private Task HandleDragOver(DragEventArgs e)
+    {
+        return Task.CompletedTask;
+    }
+
+    private Task HandleDragLeave(DragEventArgs e)
+    {
+        return Task.CompletedTask;
+    }
+
+    private void ClearImage()
+    {
+        quickEntryProduct.ImageData = null;
+    }
+
+    private async Task HandleQuickEntry()
+    {
+        try
+        {
+            // Validation
+            if (string.IsNullOrWhiteSpace(quickEntryProduct.Name) ||
+                string.IsNullOrWhiteSpace(quickEntryProduct.ProductCode) ||
+                quickEntryProduct.Price <= 0 ||
+                quickEntryProduct.StockQuantity < 0 ||
+                string.IsNullOrWhiteSpace(quickEntryProduct.Size) ||
+                string.IsNullOrWhiteSpace(quickEntryProduct.Color))
+            {
+                errorMessage = "Please fill in all required fields.";
+                return;
+            }
+
+            isAddingProduct = true;
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+
+            // Ensure LowStockLevel has default value
+            if (quickEntryProduct.LowStockLevel <= 0)
+            {
+                quickEntryProduct.LowStockLevel = 10;
+            }
+
+            // Add product via API
+            var response = await Http.PostAsJsonAsync("api/products", quickEntryProduct);
+
+            if (response.IsSuccessStatusCode)
+            {
+                successMessage = $"Product '{quickEntryProduct.Name}' added successfully!";
+
+                // Clear form and reload data
+                ClearQuickEntryForm();
+                await LoadProducts();
+
+                // Reset filters to show all products
+                currentFilter = "all";
+                searchQuery = string.Empty;
+                ApplyFilters();
+
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = $"Error adding product (Status: {response.StatusCode}). Please check if the product code already exists.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error adding product: {ex.Message}";
+            Console.WriteLine($"Add product error: {ex}");
+        }
+        finally
+        {
+            isAddingProduct = false;
+        }
+    }
+
+    private async Task EditProduct(int id)
+    {
+        try
+        {
+            quickEntryProduct = await Http.GetFromJsonAsync<Product>($"api/products/{id}") ?? new();
+            await JS.InvokeVoidAsync("scrollTo", 0, 0);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading product: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete this product?"))
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/products/{id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    successMessage = "Product deleted successfully!";
+                    await LoadProducts();
+                    ApplyFilters();
+                }
+                else
+                {
+                    errorMessage = $"Error deleting product (Status: {response.StatusCode})";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error deleting product: {ex.Message}";
+                Console.WriteLine($"Delete error: {ex}");
+            }
+        }
+    }
+
+    // ===== REQUIREMENT 3: SEARCH PRODUCTS =====
+    private void ApplyFilters()
+    {
+        filteredProducts = allProducts.Where(p =>
+        {
+            // Search by Product Name or Product Code
+            bool matchesSearch = string.IsNullOrEmpty(searchQuery) ||
+                                p.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                                p.ProductCode.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
+
+            // Apply status filter
+            bool matchesFilter = currentFilter switch
+            {
+                "in-stock" => p.StockQuantity > 0,
+                "low-stock" => p.StockQuantity > 0 && p.StockQuantity <= p.LowStockLevel,
+                "out-of-stock" => p.StockQuantity == 0,
+                _ => true // "all"
+            };
+
+            return matchesSearch && matchesFilter;
+        }).ToList();
+    }
+
+    // ===== REQUIREMENT 4: FILTER BY STATUS =====
+    private void SetFilter(string status)
+    {
+        currentFilter = status;
+        ApplyFilters();
+    }
+
+    // ===== UTILITY METHODS =====
+    private string GetProductStatus(Product product)
+    {
+        if (product.StockQuantity == 0)
+            return "Out of Stock";
+        
+        if (product.StockQuantity <= product.LowStockLevel)
+            return "Low Stock";
+        
+        return "In Stock";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "In Stock" => "bg-success",
+            "Low Stock" => "bg-warning text-dark",
+            "Out of Stock" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("N2", new System.Globalization.CultureInfo("en-LK"));
+    }
+
+    private void ClearQuickEntryForm()
+    {
+        quickEntryProduct = new();
+        successMessage = string.Empty;
+        errorMessage = string.Empty;
+    }
+
+    private void ExportProducts()
+    {
+        // Placeholder for export functionality
+        successMessage = "Export feature coming soon!";
+    }
+}

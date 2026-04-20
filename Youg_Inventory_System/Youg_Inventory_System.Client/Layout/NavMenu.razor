@@ -1,0 +1,116 @@
+@using System.Net.Http.Json
+@inject NavigationManager NavigationManager
+
+<nav class="modern-sidebar bg-dark text-white">
+    <div class="sidebar-header p-4 border-bottom border-secondary">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bag-fill fs-4" style="color: #667eea;"></i>
+            <span class="fw-bold fs-6">YoungInventory</span>
+        </div>
+        <small class="text-secondary mt-2 d-block">
+            <i class="bi bi-person-circle"></i> Admin
+        </small>
+    </div>
+
+    <div class="nav flex-column p-3 gap-2 flex-grow-1">
+        
+        <NavLink href="" Match="NavLinkMatch.All" class="nav-link text-light d-flex align-items-center gap-3 sidebar-nav-link">
+            <i class="bi bi-house-fill"></i>
+            <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink href="products" class="nav-link text-light d-flex align-items-center gap-3 sidebar-nav-link">
+            <i class="bi bi-box2-heart-fill"></i>
+            <span>Products</span>
+        </NavLink>
+
+        <NavLink href="orders" class="nav-link text-light d-flex align-items-center gap-3 sidebar-nav-link">
+            <i class="bi bi-cart-fill"></i>
+            <span>Orders</span>
+        </NavLink>
+
+        <NavLink href="reports" class="nav-link text-light d-flex align-items-center gap-3 sidebar-nav-link">
+            <i class="bi bi-graph-up"></i>
+            <span>Reports</span>
+        </NavLink>
+
+        <NavLink href="settings" class="nav-link text-light d-flex align-items-center gap-3 sidebar-nav-link">
+            <i class="bi bi-gear"></i>
+            <span>Settings</span>
+        </NavLink>
+
+        <hr class="border-secondary my-2" />
+    </div>
+
+    <div class="border-top border-secondary p-3">
+        <button class="btn btn-outline-danger w-100 btn-sm d-flex align-items-center justify-content-center gap-2" @onclick="HandleLogout">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </button>
+    </div>
+</nav>
+
+<style>
+    .modern-sidebar {
+        width: 200px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        flex-shrink: 0;
+        background-color: #1a1d29 !important;
+    }
+
+    .sidebar-header {
+        background: linear-gradient(135deg, #1a1d29 0%, #232836 100%);
+        border-bottom: 1px solid #333 !important;
+    }
+
+    @@keyframes pulse-icon {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+
+    .sidebar-header i {
+        animation: pulse-icon 2s ease-in-out infinite;
+    }
+
+    .sidebar-nav-link {
+        padding: 10px 16px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+        cursor: pointer;
+        text-decoration: none !important;
+    }
+
+    .sidebar-nav-link:hover {
+        background-color: rgba(102, 126, 234, 0.1);
+        border-left-color: rgba(102, 126, 234, 0.5);
+        color: #fff !important;
+    }
+
+    .sidebar-nav-link.active {
+        background-color: rgba(102, 126, 234, 0.2) !important;
+        border-left-color: #667eea !important;
+        color: #667eea !important;
+        font-weight: 600;
+    }
+
+    .sidebar-nav-link i {
+        font-size: 18px;
+        width: 20px;
+        text-align: center;
+    }
+
+    .sidebar-nav-link span {
+        font-size: 14px;
+    }
+</style>
+
+@code {
+    private void HandleLogout()
+    {
+        NavigationManager.NavigateTo("/logout", forceLoad: true);
+    }
+}

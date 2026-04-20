@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Youg_Inventory_System.Client": {
+      "commandName": "Project"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    }
+  }
+}

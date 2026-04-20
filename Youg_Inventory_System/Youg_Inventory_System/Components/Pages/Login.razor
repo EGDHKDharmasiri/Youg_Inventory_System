@@ -1,0 +1,441 @@
+@page "/login"
+@layout Youg_Inventory_System.Components.Layouts.LoginLayout
+@using Microsoft.AspNetCore.Components.Authorization
+@using Youg_Inventory_System.Services
+@using Youg_Inventory_System.Data
+@using Microsoft.EntityFrameworkCore
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject AppDbContext DbContext
+
+<PageTitle>Login - Young Inventory System</PageTitle>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <!-- Header Section -->
+        <div class="login-header">
+            <div class="logo-container">
+                <div class="logo-circle">
+                    <i class="bi bi-bag-fill"></i>
+                </div>
+            </div>
+            <h1 class="login-title">YoungInventory</h1>
+            <p class="login-subtitle">Secure Inventory Management System</p>
+        </div>
+
+        <!-- Form Section -->
+        <div class="login-form-section">
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert-custom alert-danger-custom">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <div class="alert-content">
+                        <strong>Login Failed</strong>
+                        <p>@errorMessage</p>
+                    </div>
+                    <button class="alert-close" @onclick="@(() => errorMessage = "")">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            }
+
+            <form @onsubmit="HandleLogin" class="login-form">
+                <!-- Username Field -->
+                <div class="form-group">
+                    <label for="username" class="form-label">
+                        <i class="bi bi-person"></i>
+                        <span>Username</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        class="form-input"
+                        placeholder="Enter your username"
+                        @bind-value="username"
+                        required
+                        disabled="@isLoading"
+                        autocomplete="username" />
+                </div>
+
+                <!-- Password Field -->
+                <div class="form-group">
+                    <label for="password" class="form-label">
+                        <i class="bi bi-lock"></i>
+                        <span>Password</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="form-input"
+                        placeholder="Enter your password"
+                        @bind="password"
+                        required
+                        disabled="@isLoading"
+                        autocomplete="current-password" />
+                </div>
+
+                <!-- Login Button -->
+                <button 
+                    type="submit" 
+                    class="login-button"
+                    disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-custom"></span>
+                        <span>Logging in...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span>Sign In</span>
+                    }
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer Section -->
+        <div class="login-footer">
+            <div class="security-badge">
+                <i class="bi bi-shield-check"></i>
+                <span>Secure & Encrypted</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .login-wrapper {
+        width: 100%;
+        max-width: 420px;
+        animation: slideUp 0.5s ease-out;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+    }
+
+    .login-header {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+        padding: 40px 30px 30px;
+        text-align: center;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .logo-circle {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        font-size: 30px;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .login-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin: 0 0 8px;
+        letter-spacing: -0.5px;
+    }
+
+    .login-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .login-form-section {
+        padding: 40px 30px;
+    }
+
+    .alert-custom {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .alert-danger-custom {
+        background-color: #fff5f5;
+        border: 1px solid #fde2e4;
+        color: #c71c22;
+    }
+
+    .alert-danger-custom i {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-content strong {
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .alert-content p {
+        margin: 0;
+    }
+
+    .alert-close {
+        background: none;
+        border: none;
+        color: #c71c22;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 0;
+        flex-shrink: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .alert-close:hover {
+        opacity: 0.7;
+    }
+
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a2e;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .form-label i {
+        color: #667eea;
+        font-size: 14px;
+    }
+
+    .form-input {
+        padding: 12px 16px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.3s ease;
+        background: #fafbfc;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: #999;
+    }
+
+    .form-input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .login-button {
+        padding: 13px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 8px;
+    }
+
+    .login-button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(102, 126, 234, 0.3);
+    }
+
+    .login-button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    .login-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .spinner-custom {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .login-footer {
+        background: #fafbfc;
+        padding: 24px 30px;
+        border-top: 1px solid #e8e8e8;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .security-badge {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .security-badge i {
+        color: #667eea;
+        font-size: 14px;
+    }
+
+    @@media (max-width: 576px) {
+        .login-wrapper {
+            max-width: 100%;
+        }
+
+        .login-header {
+            padding: 30px 20px 20px;
+        }
+
+        .login-form-section {
+            padding: 30px 20px;
+        }
+
+        .login-footer {
+            padding: 20px;
+        }
+
+        .login-title {
+            font-size: 24px;
+        }
+
+        .login-button {
+            font-size: 13px;
+            padding: 11px 16px;
+        }
+    }
+</style>
+
+@code {
+    private string username = string.Empty;
+    private string password = string.Empty;
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated ?? false)
+        {
+            // මෙතන තිබ්බ forceLoad: true එක අයින් කළා!
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        errorMessage = string.Empty;
+        isLoading = true;
+
+        try
+        {
+            // Check recovery key first
+            if (username == "admin" && password == "YOUNG-ADMIN-999")
+            {
+                var authProvider = (CustomAuthenticationStateProvider)AuthenticationStateProvider;
+                await authProvider.MarkUserAsAuthenticated("admin");
+                NavigationManager.NavigateTo("/", forceLoad: true);
+                return;
+            }
+
+            // Query database for user
+            var user = await DbContext.Users.FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
+
+            if (user != null)
+            {
+                var authProvider = (CustomAuthenticationStateProvider)AuthenticationStateProvider;
+                await authProvider.MarkUserAsAuthenticated(username);
+                NavigationManager.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = "Invalid username or password. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

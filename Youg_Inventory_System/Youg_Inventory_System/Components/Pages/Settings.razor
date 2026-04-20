@@ -1,0 +1,247 @@
+@page "/settings"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using Youg_Inventory_System.Data
+@using Youg_Inventory_System.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext DbContext
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Settings - Young Inventory System</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear"></i>
+                        Account Settings
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i>
+                            @successMessage
+                            <button type="button" class="btn-close" @onclick="@(() => successMessage = "")" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i>
+                            @errorMessage
+                            <button type="button" class="btn-close" @onclick="@(() => errorMessage = "")" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form @onsubmit="HandleChangeCredentials">
+                        <div class="mb-3">
+                            <label for="newUsername" class="form-label">
+                                <i class="bi bi-person"></i>
+                                New Username
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="newUsername"
+                                placeholder="Enter new username"
+                                @bind-value="newUsername"
+                                disabled="@isLoading"
+                                required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">
+                                <i class="bi bi-lock"></i>
+                                New Password
+                            </label>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="newPassword"
+                                placeholder="Enter new password"
+                                @bind-value="newPassword"
+                                disabled="@isLoading"
+                                required />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">
+                                <i class="bi bi-lock-check"></i>
+                                Confirm Password
+                            </label>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="confirmPassword"
+                                placeholder="Confirm your password"
+                                @bind-value="confirmPassword"
+                                disabled="@isLoading"
+                                required />
+                        </div>
+
+                        <div class="alert alert-info" role="alert">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Recovery Key:</strong> You can always use <code>admin / YOUNG-ADMIN-999</code> to regain access to your account.
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            class="btn btn-primary w-100"
+                            disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span>Updating...</span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle"></i>
+                                <span>Update Credentials</span>
+                            }
+                        </button>
+                    </form>
+
+                    <hr class="my-4" />
+
+                    <button class="btn btn-secondary w-100" @onclick="HandleCancel">
+                        <i class="bi bi-arrow-left"></i>
+                        Back to Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .form-label i {
+        color: #0d6efd;
+    }
+
+    .btn span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .alert i {
+        margin-right: 6px;
+    }
+
+    code {
+        background-color: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #d63031;
+    }
+</style>
+
+@code {
+    private string newUsername = string.Empty;
+    private string newPassword = string.Empty;
+    private string confirmPassword = string.Empty;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleChangeCredentials()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(newUsername))
+        {
+            errorMessage = "Username cannot be empty.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            errorMessage = "Password cannot be empty.";
+            return;
+        }
+
+        if (newPassword != confirmPassword)
+        {
+            errorMessage = "Passwords do not match. Please try again.";
+            return;
+        }
+
+        if (newPassword.Length < 6)
+        {
+            errorMessage = "Password must be at least 6 characters long.";
+            return;
+        }
+
+        isLoading = true;
+
+        try
+        {
+            // Get the first (and only) user from the database
+            var user = await DbContext.Users.FirstOrDefaultAsync();
+
+            if (user != null)
+            {
+                user.Username = newUsername;
+                user.Password = newPassword;
+                user.UpdatedAt = DateTime.UtcNow;
+
+                await DbContext.SaveChangesAsync();
+
+                successMessage = "Credentials updated successfully! You will be logged out and redirected to login.";
+
+                // Wait 2 seconds to show success message, then logout
+                await Task.Delay(2000);
+
+                // Logout and redirect
+                var authProvider = (CustomAuthenticationStateProvider)AuthenticationStateProvider;
+                await authProvider.MarkUserAsLoggedOut();
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+            }
+            else
+            {
+                errorMessage = "User not found in database.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while updating credentials: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void HandleCancel()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+
+    protected override void OnInitialized()
+    {
+        // Initialize form fields if needed
+        newUsername = string.Empty;
+        newPassword = string.Empty;
+        confirmPassword = string.Empty;
+    }
+}
